@@ -148,6 +148,8 @@ class InputDataFields(object):
   image_format = 'image_format'
   image_height = 'image_height'
   image_width = 'image_width'
+  groundtruth_lane_keypoints_heatmap = 'groundtruth_lane_keypoints_heatmap'
+  groundtruth_lane_keypoints_weights = 'groundtruth_lane_keypoints_weights'
 
 
 class DetectionResultFields(object):
@@ -196,7 +198,18 @@ class DetectionResultFields(object):
   raw_detection_boxes = 'raw_detection_boxes'
   raw_detection_scores = 'raw_detection_scores'
   detection_anchor_indices = 'detection_anchor_indices'
+  keypoints_heatmap = 'keypoints'
 
+
+class LaneKeypointResultsFields(object):
+  source_id = 'source_id'
+  key = 'key'
+  keypoints_heatmap = 'keypoints'
+
+
+class LaneListFields(object):
+  lane_keypoints_heatmap = 'lane_keypoints'
+  lane_keypoints_weights = 'lane_keypoints_weights'
 
 class BoxListFields(object):
   """Naming conventions for BoxLists.
@@ -242,6 +255,8 @@ class BoxListFields(object):
   track_ids = 'track_ids'
   temporal_offsets = 'temporal_offsets'
   track_match_flags = 'track_match_flags'
+  lane_keypoints_heatmap = 'lane_keypoints'
+  lane_keypoints_weights = 'lane_keypoints_weights'
 
 
 class PredictionFields(object):
@@ -339,6 +354,8 @@ class TfExampleFields(object):
   detection_bbox_ymax = 'image/detection/bbox/ymax'
   detection_bbox_xmax = 'image/detection/bbox/xmax'
   detection_score = 'image/detection/score'
+  lane_keypoints = 'image/lane/keypoints_heatmap'
+  lane_keypoints_weights = 'image/lane/keypoints_weights'
 
 # Sequence fields for SequenceExample inputs.
 # All others are considered context fields.
