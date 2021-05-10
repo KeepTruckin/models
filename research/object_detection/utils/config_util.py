@@ -335,6 +335,16 @@ def get_number_of_classes(model_config):
     raise ValueError("{} does not have num_classes.".format(meta_architecture))
 
 
+def get_number_of_keypoints_for_lanes(model_config):
+  meta_architecture = model_config.WhichOneof("model")
+  meta_architecture_config = getattr(model_config, meta_architecture)
+
+  if hasattr(meta_architecture_config, "num_keypoints"):
+    return meta_architecture_config.num_classes
+  else:
+    raise ValueError("{} does not have num_keypoints.".format(meta_architecture))
+
+
 def get_optimizer_type(train_config):
   """Returns the optimizer type for training.
 

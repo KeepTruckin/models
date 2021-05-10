@@ -395,7 +395,8 @@ def pad_input_data_to_static_shapes(tensor_dict,
                                     spatial_image_shape=None,
                                     max_num_context_features=None,
                                     context_feature_length=None,
-                                    max_dp_points=336):
+                                    max_dp_points=336,
+                                    num_keypoints=-1):
   """Pads input tensors to static shapes.
 
   In case num_additional_channels > 0, we assume that the additional channels
@@ -463,37 +464,70 @@ def pad_input_data_to_static_shapes(tensor_dict,
     raise ValueError('max_num_context_features must be specified in the model '
                      'config if include_context is specified in the input '
                      'config')
-
-  padding_shapes = {
-      input_fields.image: [height, width, num_channels],
-      input_fields.original_image_spatial_shape: [2],
-      input_fields.image_additional_channels: [
-          height, width, num_additional_channels
-      ],
-      input_fields.source_id: [],
-      input_fields.filename: [],
-      input_fields.key: [],
-      input_fields.groundtruth_difficult: [max_num_boxes],
-      input_fields.groundtruth_boxes: [max_num_boxes, 4],
-      input_fields.groundtruth_classes: [max_num_boxes, num_classes],
-      input_fields.groundtruth_instance_masks: [
-          max_num_boxes, height, width
-      ],
-      input_fields.groundtruth_is_crowd: [max_num_boxes],
-      input_fields.groundtruth_group_of: [max_num_boxes],
-      input_fields.groundtruth_area: [max_num_boxes],
-      input_fields.groundtruth_weights: [max_num_boxes],
-      input_fields.groundtruth_confidences: [
-          max_num_boxes, num_classes
-      ],
-      input_fields.num_groundtruth_boxes: [],
-      input_fields.groundtruth_label_types: [max_num_boxes],
-      input_fields.groundtruth_label_weights: [max_num_boxes],
-      input_fields.true_image_shape: [3],
-      input_fields.groundtruth_image_classes: [num_classes],
-      input_fields.groundtruth_image_confidences: [num_classes],
-      input_fields.groundtruth_labeled_classes: [num_classes],
-  }
+  if num_keypoints == -1:
+      padding_shapes = {
+          input_fields.image: [height, width, num_channels],
+          input_fields.original_image_spatial_shape: [2],
+          input_fields.image_additional_channels: [
+              height, width, num_additional_channels
+          ],
+          input_fields.source_id: [],
+          input_fields.filename: [],
+          input_fields.key: [],
+          input_fields.groundtruth_difficult: [max_num_boxes],
+          input_fields.groundtruth_boxes: [max_num_boxes, 4],
+          input_fields.groundtruth_classes: [max_num_boxes, num_classes],
+          input_fields.groundtruth_instance_masks: [
+              max_num_boxes, height, width
+          ],
+          input_fields.groundtruth_is_crowd: [max_num_boxes],
+          input_fields.groundtruth_group_of: [max_num_boxes],
+          input_fields.groundtruth_area: [max_num_boxes],
+          input_fields.groundtruth_weights: [max_num_boxes],
+          input_fields.groundtruth_confidences: [
+              max_num_boxes, num_classes
+          ],
+          input_fields.num_groundtruth_boxes: [],
+          input_fields.groundtruth_label_types: [max_num_boxes],
+          input_fields.groundtruth_label_weights: [max_num_boxes],
+          input_fields.true_image_shape: [3],
+          input_fields.groundtruth_image_classes: [num_classes],
+          input_fields.groundtruth_image_confidences: [num_classes],
+          input_fields.groundtruth_labeled_classes: [num_classes],
+      }
+  else:
+      padding_shapes = {
+          input_fields.image: [height, width, num_channels],
+          input_fields.original_image_spatial_shape: [2],
+          input_fields.image_additional_channels: [
+              height, width, num_additional_channels
+          ],
+          input_fields.source_id: [],
+          input_fields.filename: [],
+          input_fields.key: [],
+          input_fields.groundtruth_difficult: [max_num_boxes],
+          input_fields.groundtruth_boxes: [max_num_boxes, 4],
+          input_fields.groundtruth_classes: [max_num_boxes, num_classes],
+          input_fields.groundtruth_instance_masks: [
+              max_num_boxes, height, width
+          ],
+          fields.InputDataFields.groundtruth_lane_keypoints_heatmap: [num_keypoints],
+          fields.InputDataFields.groundtruth_lane_keypoints_weights: [num_keypoints],
+          input_fields.groundtruth_is_crowd: [max_num_boxes],
+          input_fields.groundtruth_group_of: [max_num_boxes],
+          input_fields.groundtruth_area: [max_num_boxes],
+          input_fields.groundtruth_weights: [max_num_boxes],
+          input_fields.groundtruth_confidences: [
+              max_num_boxes, num_classes
+          ],
+          input_fields.num_groundtruth_boxes: [],
+          input_fields.groundtruth_label_types: [max_num_boxes],
+          input_fields.groundtruth_label_weights: [max_num_boxes],
+          input_fields.true_image_shape: [3],
+          input_fields.groundtruth_image_classes: [num_classes],
+          input_fields.groundtruth_image_confidences: [num_classes],
+          input_fields.groundtruth_labeled_classes: [num_classes],
+      }
 
   if input_fields.original_image in tensor_dict:
     padding_shapes[input_fields.original_image] = [
@@ -633,14 +667,24 @@ def augment_input_data(tensor_dict, data_augmentation_options):
   return tensor_dict
 
 
-def _get_labels_dict(input_dict):
+def _get_labels_dict(input_dict, is_unified_vehicle_lane=False):
   """Extracts labels dict from input dict."""
-  required_label_keys = [
-      fields.InputDataFields.num_groundtruth_boxes,
-      fields.InputDataFields.groundtruth_boxes,
-      fields.InputDataFields.groundtruth_classes,
-      fields.InputDataFields.groundtruth_weights,
-  ]
+  if is_unified_vehicle_lane:
+      required_label_keys = [
+          fields.InputDataFields.num_groundtruth_boxes,
+          fields.InputDataFields.groundtruth_boxes,
+          fields.InputDataFields.groundtruth_classes,
+          fields.InputDataFields.groundtruth_weights,
+          fields.InputDataFields.groundtruth_lane_keypoints_heatmap,
+          fields.InputDataFields.groundtruth_lane_keypoints_weights
+      ]
+  else:
+      required_label_keys = [
+          fields.InputDataFields.num_groundtruth_boxes,
+          fields.InputDataFields.groundtruth_boxes,
+          fields.InputDataFields.groundtruth_classes,
+          fields.InputDataFields.groundtruth_weights,
+      ]
   labels_dict = {}
   for key in required_label_keys:
     labels_dict[key] = input_dict[key]
@@ -741,7 +785,7 @@ def _get_features_dict(input_dict, include_source_id=False):
 
 
 def create_train_input_fn(train_config, train_input_config,
-                          model_config):
+                          model_config, is_unified_vehicle_lane=False):
   """Creates a train `input` function for `Estimator`.
 
   Args:
@@ -755,13 +799,13 @@ def create_train_input_fn(train_config, train_input_config,
 
   def _train_input_fn(params=None):
     return train_input(train_config, train_input_config, model_config,
-                       params=params)
+                       params=params, is_unified_vehicle_lane=is_unified_vehicle_lane)
 
   return _train_input_fn
 
 
 def train_input(train_config, train_input_config,
-                model_config, model=None, params=None, input_context=None):
+                model_config, model=None, params=None, input_context=None, is_unified_vehicle_lane=False):
   """Returns `features` and `labels` tensor dictionaries for training.
 
   Args:
@@ -850,6 +894,9 @@ def train_input(train_config, train_input_config,
     model_preprocess_fn = model.preprocess
 
   num_classes = config_util.get_number_of_classes(model_config)
+  num_keypoints = -1
+  if is_unified_vehicle_lane:
+      num_keypoints = config_util.get_number_of_keypoints_for_lanes(model_config)
 
   def transform_and_pad_input_data_fn(tensor_dict):
     """Combines transform and pad operation."""
@@ -884,10 +931,11 @@ def train_input(train_config, train_input_config,
         max_num_context_features=config_util.get_max_num_context_features(
             model_config),
         context_feature_length=config_util.get_context_feature_length(
-            model_config))
+            model_config),
+        num_keypoints=num_keypoints)
     include_source_id = train_input_config.include_source_id
     return (_get_features_dict(tensor_dict, include_source_id),
-            _get_labels_dict(tensor_dict))
+            _get_labels_dict(tensor_dict, is_unified_vehicle_lane))
   reduce_to_frame_fn = get_reduce_to_frame_fn(train_input_config, True)
 
   dataset = INPUT_BUILDER_UTIL_MAP['dataset_build'](
@@ -899,7 +947,7 @@ def train_input(train_config, train_input_config,
   return dataset
 
 
-def create_eval_input_fn(eval_config, eval_input_config, model_config):
+def create_eval_input_fn(eval_config, eval_input_config, model_config, is_unified_vehicle_lane=False):
   """Creates an eval `input` function for `Estimator`.
 
   Args:
@@ -913,13 +961,13 @@ def create_eval_input_fn(eval_config, eval_input_config, model_config):
 
   def _eval_input_fn(params=None):
     return eval_input(eval_config, eval_input_config, model_config,
-                      params=params)
+                      params=params, is_unified_vehicle_lane=is_unified_vehicle_lane)
 
   return _eval_input_fn
 
 
 def eval_input(eval_config, eval_input_config, model_config,
-               model=None, params=None, input_context=None):
+               model=None, params=None, input_context=None, is_unified_vehicle_lane=False):
   """Returns `features` and `labels` tensor dictionaries for evaluation.
 
   Args:
@@ -1018,6 +1066,9 @@ def eval_input(eval_config, eval_input_config, model_config,
   def transform_and_pad_input_data_fn(tensor_dict):
     """Combines transform and pad operation."""
     num_classes = config_util.get_number_of_classes(model_config)
+    num_keypoints = -1
+    if is_unified_vehicle_lane:
+        num_keypoints = config_util.get_number_of_keypoints_for_lanes(model_config)
 
     image_resizer_config = config_util.get_image_resizer_config(model_config)
     image_resizer_fn = image_resizer_builder.build(image_resizer_config)
@@ -1041,10 +1092,11 @@ def eval_input(eval_config, eval_input_config, model_config,
         max_num_context_features=config_util.get_max_num_context_features(
             model_config),
         context_feature_length=config_util.get_context_feature_length(
-            model_config))
+            model_config),
+        num_keypoints=num_keypoints)
     include_source_id = eval_input_config.include_source_id
     return (_get_features_dict(tensor_dict, include_source_id),
-            _get_labels_dict(tensor_dict))
+            _get_labels_dict(tensor_dict, is_unified_vehicle_lane))
 
   reduce_to_frame_fn = get_reduce_to_frame_fn(eval_input_config, False)
 
