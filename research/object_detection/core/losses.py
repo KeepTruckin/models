@@ -113,6 +113,17 @@ class Loss(six.with_metaclass(abc.ABCMeta, object)):
     pass
 
 
+class KeypointLoss(Loss):
+  def _compute_loss(self, prediction_tensor, target_tensor, weights):
+    loss_op = tf.losses.sparse_softmax_cross_entropy(
+      labels=target_tensor,
+      logits=prediction_tensor,
+      weights=weights,
+      reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+    )
+    return loss_op
+
+
 class WeightedL2LocalizationLoss(Loss):
   """L2 localization loss function with anchorwise output support.
 
