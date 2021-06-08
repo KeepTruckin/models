@@ -138,3 +138,49 @@ class SSDMobileNetV2FeatureExtractor(ssd_meta_arch.SSDFeatureExtractor):
               image_features=image_features)
 
     return list(feature_maps.values())
+
+  def extract_features_for_kt_lane(self, preprocessed_inputs):
+    """Extract features from preprocessed inputs.
+
+    Args:
+      preprocessed_inputs: a [batch, height, width, channels] float tensor
+        representing a batch of images.
+
+    Returns:
+      feature_maps: a list of tensors where the ith tensor has shape
+        [batch, height_i, width_i, depth_i]
+    """
+    preprocessed_inputs = shape_utils.check_min_image_dim(
+        33, preprocessed_inputs)
+
+    feature_map_layout = {
+        'from_layer': ['layer_15/expansion_output', 'layer_19', '', '', '', ''
+                      ][:self._num_layers],
+        'layer_depth': [-1, -1, 512, 256, 256, 128][:self._num_layers],
+        'use_depthwise': self._use_depthwise,
+        'use_explicit_padding': self._use_explicit_padding,
+    }
+
+    with tf.variable_scope('MobilenetV2', reuse=self._reuse_weights) as scope:
+      with slim.arg_scope(
+          mobilenet_v2.training_scope(is_training=None, bn_decay=0.9997)), \
+          slim.arg_scope(
+              [mobilenet.depth_multiplier], min_depth=self._min_depth):
+        with (slim.arg_scope(self._conv_hyperparams_fn())
+              if self._override_base_feature_extractor_hyperparams else
+              context_manager.IdentityContextManager()):
+          _, image_features = mobilenet_v2.mobilenet_base(
+              ops.pad_to_multiple(preprocessed_inputs, self._pad_to_multiple),
+              final_endpoint='layer_19',
+              depth_multiplier=self._depth_multiplier,
+              use_explicit_padding=self._use_explicit_padding,
+              scope=scope)
+        with slim.arg_scope(self._conv_hyperparams_fn()):
+          feature_maps = feature_map_generators.multi_resolution_feature_maps(
+              feature_map_layout=feature_map_layout,
+              depth_multiplier=self._depth_multiplier,
+              min_depth=self._min_depth,
+              insert_1x1_conv=True,
+              image_features=image_features)
+
+    return list(feature_maps.values()), image_features
