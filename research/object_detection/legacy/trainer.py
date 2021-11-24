@@ -207,7 +207,8 @@ def _create_losses(input_queue, create_model_fn, train_config):
     tf.losses.add_loss(loss_tensor)
 
 
-def train(create_tensor_dict_fn,
+def train(gradient_masks,
+          create_tensor_dict_fn,
           create_model_fn,
           train_config,
           master,
@@ -339,6 +340,11 @@ def train(create_tensor_dict_fn,
           grads_and_vars = slim.learning.clip_gradient_norms(
               grads_and_vars, train_config.gradient_clipping_by_norm)
 
+
+      if(gradient_masks):
+        from prune_TF1 import apply_prune_on_grads
+        grads_and_vars = apply_prune_on_grads(grads_and_vars, gradient_masks)
+      
       # Create gradient updates.
       grad_updates = training_optimizer.apply_gradients(grads_and_vars,
                                                         global_step=global_step)

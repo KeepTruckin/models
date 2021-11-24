@@ -53,6 +53,10 @@ flags.DEFINE_integer(
     'retries upon encountering tf.errors.InvalidArgumentError. If negative, '
     'will always retry the evaluation.'
 )
+flags.DEFINE_string('metric_file', '', '')
+flags.DEFINE_boolean('pruning_mask', False,'If true, apply mask on weight entries with zero value')
+flags.DEFINE_string('wname_file', '', 'wegith_names file')
+
 FLAGS = flags.FLAGS
 
 
@@ -60,8 +64,19 @@ def main(unused_argv):
   flags.mark_flag_as_required('model_dir')
   flags.mark_flag_as_required('pipeline_config_path')
   config = tf.estimator.RunConfig(model_dir=FLAGS.model_dir)
+  config = config.replace(keep_checkpoint_max=50)
 
-  train_and_eval_dict = model_lib.create_estimator_and_inputs(
+
+  #AMBARELLA prune module only
+  if(FLAGS.pruning_mask): 
+    from prune_TF1 import get_pruned_mask,write_metric,load_var
+    weight_names = load_var(FLAGS.wname_file)
+    gradient_multipliers = get_pruned_mask(FLAGS.model_dir,weight_names)
+  else:
+    gradient_multipliers = {}
+    
+    
+  train_and_eval_dict = model_lib.create_estimator_and_inputs(gradient_multipliers,
       run_config=config,
       pipeline_config_path=FLAGS.pipeline_config_path,
       train_steps=FLAGS.num_train_steps,
@@ -84,10 +99,13 @@ def main(unused_argv):
       # The first eval input will be evaluated.
       input_fn = eval_input_fns[0]
     if FLAGS.run_once:
-      estimator.evaluate(input_fn,
+      metric = estimator.evaluate(input_fn,
                          steps=None,
                          checkpoint_path=tf.train.latest_checkpoint(
                              FLAGS.checkpoint_dir))
+       #AMBARELLA prune module only
+      if(FLAGS.metric_file):
+        write_metric(FLAGS.metric_file,metric["DetectionBoxes_Precision/mAP@.50IOU"])
     else:
       model_lib.continuous_eval(estimator, FLAGS.checkpoint_dir, input_fn,
                                 train_steps, name, FLAGS.max_eval_retries)

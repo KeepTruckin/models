@@ -399,7 +399,7 @@ def provide_groundtruth(model, labels):
       groundtruth_keypoint_depth_weights_list=gt_keypoint_depth_weights_list)
 
 
-def create_model_fn(detection_model_fn, configs, hparams=None, use_tpu=False,
+def create_model_fn(gradient_multipliers, detection_model_fn, configs, hparams=None, use_tpu=False,
                     postprocess_on_cpu=False):
   """Creates a model function for `Estimator`.
 
@@ -595,6 +595,7 @@ def create_model_fn(detection_model_fn, configs, hparams=None, use_tpu=False,
           learning_rate=None,
           clip_gradients=clip_gradients_value,
           optimizer=training_optimizer,
+          gradient_multipliers=gradient_multipliers,
           update_ops=detection_model.updates(),
           variables=trainable_variables,
           summaries=summaries,
@@ -714,7 +715,8 @@ def create_model_fn(detection_model_fn, configs, hparams=None, use_tpu=False,
   return model_fn
 
 
-def create_estimator_and_inputs(run_config,
+def create_estimator_and_inputs(gradient_multipliers,
+                                run_config,
                                 hparams=None,
                                 pipeline_config_path=None,
                                 config_override=None,
@@ -735,7 +737,7 @@ def create_estimator_and_inputs(run_config,
 
   Args:
     run_config: A `RunConfig`.
-    hparams: (optional) A `HParams`.
+    hparams: (optional) A `HParams`.create_model_fn
     pipeline_config_path: A path to a pipeline config file.
     config_override: A pipeline_pb2.TrainEvalPipelineConfig text proto to
       override the config from `pipeline_config_path`.
@@ -864,7 +866,7 @@ def create_estimator_and_inputs(run_config,
     export_to_tpu = hparams.get('export_to_tpu', False)
   tf.logging.info('create_estimator_and_inputs: use_tpu %s, export_to_tpu %s',
                   use_tpu, export_to_tpu)
-  model_fn = model_fn_creator(detection_model_fn, configs, hparams, use_tpu,
+  model_fn = model_fn_creator(gradient_multipliers, detection_model_fn, configs, hparams, use_tpu,
                               postprocess_on_cpu)
   if use_tpu_estimator:
     estimator = tf.estimator.tpu.TPUEstimator(
@@ -1109,6 +1111,7 @@ def populate_experiment(run_config,
                      'tf.estimator.train_and_evaluate(). See model_main.py for '
                      'an example.')
   train_and_eval_dict = create_estimator_and_inputs(
+      gradient_multipliers,
       run_config,
       hparams,
       pipeline_config_path,
